@@ -10,6 +10,7 @@ import net.sf.jabref.model.entry.FileField;
 import net.sf.jabref.model.entry.ParsedFileField;
 
 import java.io.File;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -55,6 +56,7 @@ public class IntegrityCheck {
         result.addAll(new TypeChecker().check(entry));
         result.addAll(new AbbreviationChecker("journal").check(entry));
         result.addAll(new AbbreviationChecker("booktitle").check(entry));
+        result.addAll(new BibtexKeyChecker().check(entry));
 
         return result;
     }
@@ -63,6 +65,29 @@ public class IntegrityCheck {
     @FunctionalInterface
     public interface Checker {
         List<IntegrityMessage> check(BibEntry entry);
+    }
+
+    private static class BibtexKeyChecker implements Checker {
+
+        private static final Predicate<String> STARTS_WITH_LETTER = Pattern.compile("([a-z]|[A-Z])([^\\s])")
+                .asPredicate();
+
+
+        @Override
+        public List<IntegrityMessage> check(BibEntry entry) {
+            String value = entry.getCiteKey();
+            if (null == value) {
+                return Collections.emptyList();
+            }
+            if (!STARTS_WITH_LETTER.test(value)) {
+                return Collections.singletonList(new IntegrityMessage(
+                        Localization
+                                .lang("Invalid BibTexKey, must contain at least 2 character starting with a letter"),
+                        entry, "bibtexkey"));
+            }
+            return Collections.emptyList();
+        }
+
     }
 
     private static class TypeChecker implements Checker {
@@ -259,7 +284,7 @@ public class IntegrityCheck {
 
     private static class YearChecker implements Checker {
 
-        private static final Predicate<String> CONTAINS_FOUR_DIGIT = Pattern.compile("([^0-9]|^)[0-9]{4}([^0-9]|$)").asPredicate();
+        private static final Predicate<String> CONTAINS_FOUR_DIGIT = Pattern.compile("(^)[0-9]{4}($)").asPredicate();
 
         /**
          * Checks, if the number String contains a four digit year
@@ -273,6 +298,10 @@ public class IntegrityCheck {
 
             if (!CONTAINS_FOUR_DIGIT.test(value.get().trim())) {
                 return Collections.singletonList(new IntegrityMessage(Localization.lang("should contain a four digit number"), entry, "year"));
+            }
+            else if (Integer.parseInt(value.get().trim()) > LocalDate.now().getYear()) {
+                return Collections.singletonList(
+                        new IntegrityMessage(Localization.lang("year can't be on future"), entry, "year"));
             }
 
             return Collections.emptyList();
