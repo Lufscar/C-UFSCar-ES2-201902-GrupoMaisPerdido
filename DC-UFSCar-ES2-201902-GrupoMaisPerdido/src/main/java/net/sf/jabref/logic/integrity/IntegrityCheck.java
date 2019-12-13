@@ -56,6 +56,7 @@ public class IntegrityCheck {
         result.addAll(new AbbreviationChecker("journal").check(entry));
         result.addAll(new AbbreviationChecker("booktitle").check(entry));
 
+        result.addAll(new AuthorChecker().check(entry));
         return result;
     }
 
@@ -63,6 +64,31 @@ public class IntegrityCheck {
     @FunctionalInterface
     public interface Checker {
         List<IntegrityMessage> check(BibEntry entry);
+    }
+
+    private static class AuthorChecker implements Checker {
+
+        private static final Predicate<String> CONTAINS_ONLY_LETTERS = Pattern.compile("([^0-9])+").asPredicate();
+
+
+        /**
+         * Checks, if the author string contains no numbers
+         */
+        @Override
+        public List<IntegrityMessage> check(BibEntry entry) {
+            Optional<String> value = entry.getFieldOptional("author");
+            if (!value.isPresent()) {
+                return Collections.emptyList();
+            }
+
+            if (!CONTAINS_ONLY_LETTERS.test(value.get().trim())) {
+                return Collections.singletonList(
+                        new IntegrityMessage(Localization.lang("author field should contain no numbers"), entry,
+                                "author"));
+            }
+
+            return Collections.emptyList();
+        }
     }
 
     private static class TypeChecker implements Checker {
