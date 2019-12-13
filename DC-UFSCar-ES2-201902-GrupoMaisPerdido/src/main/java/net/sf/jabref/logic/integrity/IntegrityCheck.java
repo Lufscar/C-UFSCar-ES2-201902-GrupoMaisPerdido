@@ -92,6 +92,7 @@ public class IntegrityCheck {
 
             return Collections.emptyList();
         }
+    }
 
     private static class BibtexKeyChecker implements Checker {
 
